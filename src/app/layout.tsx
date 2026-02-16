@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { CookieBanner } from "@/components/shared/cookie-banner";
+import { GoogleAnalytics } from "@/components/shared/google-analytics";
 import "./globals.css";
 
 const inter = Inter({
@@ -47,7 +49,11 @@ export default function RootLayout({
   return (
     <html lang="cs">
       <body className={`${inter.variable} font-sans antialiased`}>
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          {children}
+          <CookieBanner />
+          <GoogleAnalytics />
+        </TooltipProvider>
       </body>
     </html>
   );
