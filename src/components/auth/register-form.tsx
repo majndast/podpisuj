@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +11,16 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
 export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const router = useRouter();
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -29,18 +34,27 @@ export function RegisterForm() {
       return;
     }
 
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError("Dokončete prosím ověření CAPTCHA.");
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+        captchaToken: captchaToken ?? undefined,
       },
     });
 
     if (error) {
       setError("Registrace se nezdařila. Zkuste to znovu.");
       setLoading(false);
+      turnstileRef.current?.reset();
+      setCaptchaToken(null);
       return;
     }
 
@@ -110,11 +124,35 @@ export function RegisterForm() {
             />
           </div>
 
+          {TURNSTILE_SITE_KEY && (
+            <div className="flex justify-center">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken(null)}
+                options={{ theme: "light", language: "cs" }}
+              />
+            </div>
+          )}
+
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Registrace..." : "Zaregistrovat se"}
           </Button>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Registrací souhlasíte s{" "}
+            <Link href="/terms" className="underline hover:text-foreground">
+              podmínkami použití
+            </Link>{" "}
+            a{" "}
+            <Link href="/privacy" className="underline hover:text-foreground">
+              ochranou soukromí
+            </Link>
+            .
+          </p>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">

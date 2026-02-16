@@ -8,7 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { User } from "@supabase/supabase-js";
-import type { Profile, Signature } from "@/lib/supabase/types";
+import type { Profile, Signature, Tier } from "@/lib/supabase/types";
+import { generateSignatureHTML } from "@/components/editor/signature-preview";
 
 interface DashboardContentProps {
   user: User;
@@ -90,6 +91,7 @@ export function DashboardContent({
             <SignatureCard
               key={sig.id}
               signature={sig}
+              tier={tier}
               onDelete={handleDelete}
             />
           ))}
@@ -101,14 +103,43 @@ export function DashboardContent({
 
 function SignatureCard({
   signature,
+  tier,
   onDelete,
 }: {
   signature: Signature;
+  tier: Tier;
   onDelete: (id: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
 
   const data = signature.data;
+
+  const handleCopy = async () => {
+    const html = generateSignatureHTML(
+      signature.data,
+      signature.style,
+      signature.template_id,
+      tier === "free"
+    );
+
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([html], { type: "text/plain" }),
+        }),
+      ]);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = html;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="rounded-xl border border-border bg-white p-5 shadow-sm">
@@ -135,10 +166,7 @@ function SignatureCard({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
+          onClick={handleCopy}
         >
           {copied ? (
             <Check className="mr-1.5 h-3.5 w-3.5" />
