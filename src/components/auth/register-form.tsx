@@ -19,6 +19,7 @@ export function RegisterForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
   const router = useRouter();
@@ -30,6 +31,12 @@ export function RegisterForm() {
 
     if (password.length < 6) {
       setError("Heslo musí mít alespoň 6 znaků.");
+      setLoading(false);
+      return;
+    }
+
+    if (!agreed) {
+      setError("Pro registraci je nutné souhlasit s podmínkami.");
       setLoading(false);
       return;
     }
@@ -124,6 +131,34 @@ export function RegisterForm() {
             />
           </div>
 
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-xs leading-relaxed text-muted-foreground">
+              Souhlasím s{" "}
+              <Link
+                href="/terms"
+                target="_blank"
+                className="underline hover:text-foreground"
+              >
+                podmínkami použití
+              </Link>{" "}
+              a beru na vědomí zpracování osobních údajů dle{" "}
+              <Link
+                href="/privacy"
+                target="_blank"
+                className="underline hover:text-foreground"
+              >
+                zásad ochrany soukromí
+              </Link>
+              .
+            </span>
+          </label>
+
           {TURNSTILE_SITE_KEY && (
             <div className="flex justify-center">
               <Turnstile
@@ -141,18 +176,6 @@ export function RegisterForm() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Registrace..." : "Zaregistrovat se"}
           </Button>
-
-          <p className="text-center text-xs text-muted-foreground">
-            Registrací souhlasíte s{" "}
-            <Link href="/terms" className="underline hover:text-foreground">
-              podmínkami použití
-            </Link>{" "}
-            a{" "}
-            <Link href="/privacy" className="underline hover:text-foreground">
-              ochranou soukromí
-            </Link>
-            .
-          </p>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
