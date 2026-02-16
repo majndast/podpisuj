@@ -93,8 +93,12 @@ export function StepDetails() {
             <Label htmlFor="phone">Telefon</Label>
             <Input
               id="phone"
+              type="tel"
               value={data.phone}
-              onChange={(e) => setData({ phone: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9+\-\s()]/g, "");
+                setData({ phone: val });
+              }}
               placeholder="+420 123 456 789"
               className="mt-1.5"
             />

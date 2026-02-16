@@ -9,19 +9,70 @@ export interface TemplateRenderer {
   preview: (style: SignatureStyle) => React.ReactNode;
 }
 
-// Helper: social links as text
+// Helper: social links with proper URLs
+function socialUrl(key: string, value: string): string {
+  if (value.startsWith("http")) return value;
+  const map: Record<string, string> = {
+    linkedin: `https://linkedin.com/in/${value.replace("@", "")}`,
+    instagram: `https://instagram.com/${value.replace("@", "")}`,
+    facebook: `https://facebook.com/${value.replace("@", "")}`,
+    twitter: `https://x.com/${value.replace("@", "")}`,
+    github: `https://github.com/${value.replace("@", "")}`,
+    tiktok: `https://tiktok.com/@${value.replace("@", "")}`,
+    youtube: `https://youtube.com/@${value.replace("@", "")}`,
+  };
+  return map[key] || value;
+}
+
 function socialsHTML(data: SignatureData, style: SignatureStyle, fontSize: number) {
   return Object.entries(data.socials)
     .filter(([, v]) => v)
     .map(
-      ([key]) =>
-        `<a href="#" style="color:${style.primary_color};text-decoration:none;font-size:${fontSize - 2}px;margin-right:8px;">${key.charAt(0).toUpperCase() + key.slice(1)}</a>`
+      ([key, value]) =>
+        `<a href="${socialUrl(key, value!)}" style="color:${style.primary_color};text-decoration:none;font-size:${fontSize - 2}px;margin-right:8px;">${key.charAt(0).toUpperCase() + key.slice(1)}</a>`
     )
     .join("");
 }
 
 function getFontSize(style: SignatureStyle) {
   return style.font_size === "sm" ? 12 : style.font_size === "lg" ? 16 : 14;
+}
+
+function phoneHTML(phone: string, style: SignatureStyle): string {
+  const cleanPhone = phone.replace(/[\s\-()]/g, "");
+  return `<a href="tel:${cleanPhone}" style="color:inherit;text-decoration:none;">${phone}</a>`;
+}
+
+function emailHTML(email: string): string {
+  return `<a href="mailto:${email}" style="color:inherit;text-decoration:none;">${email}</a>`;
+}
+
+function contactLine(data: SignatureData, style: SignatureStyle, sep = " | "): string {
+  const parts: string[] = [];
+  if (data.phone) parts.push(phoneHTML(data.phone, style));
+  if (data.email) parts.push(emailHTML(data.email));
+  return parts.join(sep);
+}
+
+function getBorderRadius(br: SignatureStyle["border_radius"]): string {
+  switch (br) {
+    case "none": return "0";
+    case "sm": return "6px";
+    case "md": return "12px";
+    case "lg": return "20px";
+    default: return "12px";
+  }
+}
+
+export function wrapSignature(innerHtml: string, style: SignatureStyle): string {
+  const br = getBorderRadius(style.border_radius);
+  const shadow = style.shadow ? "box-shadow:0 2px 8px rgba(0,0,0,0.08),0 1px 3px rgba(0,0,0,0.06);" : "";
+  const bg = style.background_color ? `background-color:${style.background_color};` : "";
+  const needsWrap = shadow || style.border_radius !== "none" || (style.background_color && style.background_color !== "#FFFFFF" && style.background_color !== "#ffffff");
+
+  if (!needsWrap) return innerHtml;
+
+  return `<div style="display:inline-block;padding:16px 20px;border-radius:${br};${bg}${shadow}">${innerHtml}</div>`;
 }
 
 // ─── TEMPLATE 1: Minimalist ─────────────────────────────
@@ -45,8 +96,9 @@ const minimalist: TemplateRenderer = {
 <tr><td style="border-left:3px solid ${style.primary_color};padding-left:12px;">
 <p style="margin:0;font-weight:700;color:${style.secondary_color};font-size:${fs + 2}px;">${data.full_name}</p>
 ${data.position ? `<p style="margin:2px 0 0;color:${style.primary_color};">${data.position}${data.company ? ` | ${data.company}` : ""}</p>` : ""}
-${data.phone || data.email ? `<p style="margin:6px 0 0;">${[data.phone, data.email].filter(Boolean).join(" | ")}</p>` : ""}
+${data.phone || data.email ? `<p style="margin:6px 0 0;">${contactLine(data, style)}</p>` : ""}
 ${data.website ? `<p style="margin:2px 0 0;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a></p>` : ""}
+${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:6px 0 0;font-style:italic;font-size:${fs - 2}px;">"${data.motto}"</p>` : ""}
 </td></tr></table>`;
   },
@@ -76,8 +128,8 @@ const corporate: TemplateRenderer = {
 ${data.position ? `<p style="margin:4px 0 0;color:${style.primary_color};font-weight:500;">${data.position}</p>` : ""}
 ${data.company ? `<p style="margin:2px 0 0;font-weight:500;">${data.company}</p>` : ""}
 <div style="margin:10px 0;height:2px;background:${style.primary_color};width:60px;"></div>
-${data.phone ? `<p style="margin:0;">${data.phone}</p>` : ""}
-${data.email ? `<p style="margin:2px 0 0;">${data.email}</p>` : ""}
+${data.phone ? `<p style="margin:0;">${phoneHTML(data.phone, style)}</p>` : ""}
+${data.email ? `<p style="margin:2px 0 0;">${emailHTML(data.email)}</p>` : ""}
 ${data.website ? `<p style="margin:2px 0 0;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a></p>` : ""}
 ${socialsHTML(data, style, fs) ? `<div style="margin-top:8px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:10px 0 0;font-style:italic;font-size:${fs - 2}px;color:${style.text_color};">"${data.motto}"</p>` : ""}
@@ -113,10 +165,11 @@ const creative: TemplateRenderer = {
 ${data.position ? `<p style="margin:2px 0 0;color:${style.primary_color};font-weight:600;">${data.position}</p>` : ""}
 ${data.company ? `<p style="margin:1px 0 0;">${data.company}</p>` : ""}
 ${data.phone || data.email || data.website ? `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${style.primary_color}40;">
-${data.phone ? `<p style="margin:0;">${data.phone}</p>` : ""}
-${data.email ? `<p style="margin:2px 0 0;">${data.email}</p>` : ""}
+${data.phone ? `<p style="margin:0;">${phoneHTML(data.phone, style)}</p>` : ""}
+${data.email ? `<p style="margin:2px 0 0;">${emailHTML(data.email)}</p>` : ""}
 ${data.website ? `<p style="margin:2px 0 0;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a></p>` : ""}
 </div>` : ""}
+${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:8px 0 0;padding:6px 10px;background:${style.primary_color}10;border-radius:6px;font-style:italic;font-size:${fs - 2}px;">"${data.motto}"</p>` : ""}
 </td></tr></table>`;
   },
@@ -144,8 +197,9 @@ const elegant: TemplateRenderer = {
 ${data.position ? `<p style="margin:4px 0 0;color:${style.primary_color};font-size:${fs - 1}px;letter-spacing:1px;">${data.position.toUpperCase()}</p>` : ""}
 ${data.company ? `<p style="margin:2px 0 0;font-size:${fs - 1}px;">${data.company}</p>` : ""}
 <div style="margin:8px 0;height:1px;background:${style.text_color}20;"></div>
-<p style="margin:0;font-size:${fs - 1}px;">${[data.phone, data.email].filter(Boolean).join("  ·  ")}</p>
+<p style="margin:0;font-size:${fs - 1}px;">${contactLine(data, style, "  ·  ")}</p>
 ${data.website ? `<p style="margin:4px 0 0;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;font-size:${fs - 1}px;">${data.website}</a></p>` : ""}
+${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:8px 0 0;font-style:italic;font-size:${fs - 2}px;">"${data.motto}"</p>` : ""}
 </td></tr></table>`;
   },
@@ -172,9 +226,10 @@ const bold: TemplateRenderer = {
 ${data.position ? `<p style="margin:4px 0 0;font-weight:600;color:${style.secondary_color};font-size:${fs + 1}px;">${data.position}</p>` : ""}
 ${data.company ? `<p style="margin:2px 0 0;">${data.company}</p>` : ""}
 <div style="margin:10px 0;height:3px;background:${style.primary_color};width:100%;max-width:200px;border-radius:2px;"></div>
-${data.phone ? `<p style="margin:0;font-weight:500;">${data.phone}</p>` : ""}
-${data.email ? `<p style="margin:2px 0 0;">${data.email}</p>` : ""}
+${data.phone ? `<p style="margin:0;font-weight:500;">${phoneHTML(data.phone, style)}</p>` : ""}
+${data.email ? `<p style="margin:2px 0 0;">${emailHTML(data.email)}</p>` : ""}
 ${data.website ? `<p style="margin:2px 0 0;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;font-weight:600;">${data.website}</a></p>` : ""}
+${socialsHTML(data, style, fs) ? `<div style="margin-top:8px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:10px 0 0;font-size:${fs - 1}px;font-weight:600;color:${style.primary_color};">${data.motto}</p>` : ""}
 </td></tr></table>`;
   },
@@ -206,8 +261,9 @@ const classic: TemplateRenderer = {
 <td style="border-left:1px solid ${style.text_color}30;padding-left:12px;vertical-align:middle;">
 <p style="margin:0;font-weight:600;color:${style.secondary_color};">${data.full_name}</p>
 <p style="margin:2px 0 0;color:${style.primary_color};font-size:${fs - 1}px;">${[data.position, data.company].filter(Boolean).join(" · ")}</p>
-<p style="margin:4px 0 0;font-size:${fs - 1}px;">${[data.phone, data.email].filter(Boolean).join(" | ")}</p>
+<p style="margin:4px 0 0;font-size:${fs - 1}px;">${contactLine(data, style)}</p>
 ${data.website ? `<p style="margin:2px 0 0;font-size:${fs - 1}px;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a></p>` : ""}
+${socialsHTML(data, style, fs) ? `<div style="margin-top:4px;">${socialsHTML(data, style, fs)}</div>` : ""}
 </td></tr></table>`;
   },
 };
@@ -232,7 +288,7 @@ const startup: TemplateRenderer = {
 <tr><td style="padding:12px 16px;background:${style.primary_color}08;border:1px solid ${style.primary_color}20;border-radius:8px;">
 <p style="margin:0;font-weight:700;color:${style.secondary_color};font-size:${fs + 1}px;">${data.full_name} ${data.position ? `<span style="font-weight:400;color:${style.text_color};font-size:${fs - 1}px;">/ ${data.position}</span>` : ""}</p>
 ${data.company ? `<p style="margin:4px 0 0;color:${style.primary_color};font-weight:600;">${data.company}</p>` : ""}
-<p style="margin:6px 0 0;font-size:${fs - 1}px;">${[data.email, data.phone, data.website].filter(Boolean).join(" · ")}</p>
+<p style="margin:6px 0 0;font-size:${fs - 1}px;">${[data.email ? emailHTML(data.email) : "", data.phone ? phoneHTML(data.phone, style) : "", data.website ? `<a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a>` : ""].filter(Boolean).join(" · ")}</p>
 ${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:8px 0 0;font-size:${fs - 2}px;opacity:0.7;">${data.motto}</p>` : ""}
 </td></tr></table>`;
@@ -263,10 +319,11 @@ const consultant: TemplateRenderer = {
 ${data.position ? `<p style="margin:3px 0 0;color:${style.primary_color};font-weight:500;">${data.position}</p>` : ""}
 ${data.company ? `<p style="margin:1px 0 0;font-weight:500;">${data.company}</p>` : ""}
 <table cellpadding="0" cellspacing="0" style="margin-top:10px;border-collapse:collapse;font-size:${fs - 1}px;">
-${data.phone ? `<tr><td style="padding:2px 8px 2px 0;color:${style.primary_color};font-weight:600;">Tel</td><td style="padding:2px 0;">${data.phone}</td></tr>` : ""}
-${data.email ? `<tr><td style="padding:2px 8px 2px 0;color:${style.primary_color};font-weight:600;">Email</td><td style="padding:2px 0;">${data.email}</td></tr>` : ""}
+${data.phone ? `<tr><td style="padding:2px 8px 2px 0;color:${style.primary_color};font-weight:600;">Tel</td><td style="padding:2px 0;">${phoneHTML(data.phone, style)}</td></tr>` : ""}
+${data.email ? `<tr><td style="padding:2px 8px 2px 0;color:${style.primary_color};font-weight:600;">Email</td><td style="padding:2px 0;">${emailHTML(data.email)}</td></tr>` : ""}
 ${data.website ? `<tr><td style="padding:2px 8px 2px 0;color:${style.primary_color};font-weight:600;">Web</td><td style="padding:2px 0;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a></td></tr>` : ""}
 </table>
+${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:8px 0 0;font-style:italic;font-size:${fs - 2}px;border-top:1px solid ${style.text_color}20;padding-top:8px;">"${data.motto}"</p>` : ""}
 </td></tr></table>`;
   },
@@ -293,7 +350,7 @@ const developer: TemplateRenderer = {
 <tr><td style="padding:10px 14px;background:${style.secondary_color}08;border-left:3px solid ${style.primary_color};border-radius:0 4px 4px 0;">
 <p style="margin:0;font-weight:700;color:${style.secondary_color};"><span style="color:${style.primary_color};">$</span> ${data.full_name}</p>
 ${data.position ? `<p style="margin:2px 0 0;color:${style.primary_color};">// ${data.position}${data.company ? ` @ ${data.company}` : ""}</p>` : ""}
-<p style="margin:6px 0 0;font-size:${fs - 1}px;">${[data.email, data.phone].filter(Boolean).join(" | ")}</p>
+<p style="margin:6px 0 0;font-size:${fs - 1}px;">${contactLine(data, style)}</p>
 ${data.website ? `<p style="margin:2px 0 0;font-size:${fs - 1}px;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a></p>` : ""}
 ${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 </td></tr></table>`;
@@ -329,8 +386,9 @@ const designer: TemplateRenderer = {
 <p style="margin:0;font-weight:700;color:${style.secondary_color};font-size:${fs + 1}px;">${data.full_name}</p>
 ${data.position ? `<p style="margin:3px 0 0;display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${style.primary_color};"></span><span style="color:${style.primary_color};">${data.position}</span></p>` : ""}
 ${data.company ? `<p style="margin:2px 0 0;padding-left:12px;">${data.company}</p>` : ""}
-<p style="margin:8px 0 0;font-size:${fs - 1}px;">${[data.email, data.phone].filter(Boolean).join(" · ")}</p>
+<p style="margin:8px 0 0;font-size:${fs - 1}px;">${contactLine(data, style, " · ")}</p>
 ${data.website ? `<p style="margin:2px 0 0;font-size:${fs - 1}px;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a></p>` : ""}
+${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:8px 0 0;font-size:${fs - 2}px;font-style:italic;opacity:0.7;">${data.motto}</p>` : ""}
 </td></tr></table>`;
   },
@@ -358,8 +416,9 @@ const premiumGradient: TemplateRenderer = {
 ${data.position ? `<p style="margin:3px 0 0;color:${style.primary_color};font-weight:600;">${data.position}</p>` : ""}
 ${data.company ? `<p style="margin:2px 0 0;">${data.company}</p>` : ""}
 <div style="margin:10px 0;height:1px;background:linear-gradient(to right, ${style.primary_color}, transparent);"></div>
-<p style="margin:0;font-size:${fs - 1}px;">${[data.phone, data.email].filter(Boolean).join(" · ")}</p>
+<p style="margin:0;font-size:${fs - 1}px;">${contactLine(data, style, " · ")}</p>
 ${data.website ? `<p style="margin:3px 0 0;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;font-weight:600;">${data.website}</a></p>` : ""}
+${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:10px 0 0;font-size:${fs - 1}px;font-style:italic;">"${data.motto}"</p>` : ""}
 </td></tr></table>`;
   },
@@ -384,8 +443,9 @@ const premiumDark: TemplateRenderer = {
 ${data.position ? `<p style="margin:3px 0 0;color:${style.primary_color};font-weight:600;">${data.position}</p>` : ""}
 ${data.company ? `<p style="margin:2px 0 0;color:#a0a0a0;">${data.company}</p>` : ""}
 <div style="margin:10px 0;height:1px;background:${style.primary_color}40;"></div>
-<p style="margin:0;font-size:${fs - 1}px;color:#b0b0b0;">${[data.phone, data.email].filter(Boolean).join(" · ")}</p>
+<p style="margin:0;font-size:${fs - 1}px;color:#b0b0b0;">${contactLine(data, style, " · ")}</p>
 ${data.website ? `<p style="margin:3px 0 0;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a></p>` : ""}
+${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:10px 0 0;font-size:${fs - 1}px;font-style:italic;color:#888;">"${data.motto}"</p>` : ""}
 </td></tr></table>`;
   },
@@ -417,9 +477,10 @@ const premiumAnimated: TemplateRenderer = {
 ${data.position ? `<p style="margin:2px 0 0;color:${style.primary_color};font-weight:500;">${data.position}</p>` : ""}
 ${data.company ? `<p style="margin:1px 0 0;">${data.company}</p>` : ""}
 <div style="margin:8px 0;height:2px;background:${style.primary_color};width:40px;border-radius:1px;"></div>
-${data.phone ? `<p style="margin:0;font-size:${fs - 1}px;">${data.phone}</p>` : ""}
-${data.email ? `<p style="margin:2px 0 0;font-size:${fs - 1}px;">${data.email}</p>` : ""}
+${data.phone ? `<p style="margin:0;font-size:${fs - 1}px;">${phoneHTML(data.phone, style)}</p>` : ""}
+${data.email ? `<p style="margin:2px 0 0;font-size:${fs - 1}px;">${emailHTML(data.email)}</p>` : ""}
 ${data.website ? `<p style="margin:2px 0 0;font-size:${fs - 1}px;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a></p>` : ""}
+${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:8px 0 0;font-style:italic;font-size:${fs - 2}px;">"${data.motto}"</p>` : ""}
 </td></tr></table>`;
   },
@@ -444,8 +505,9 @@ const premiumNeon: TemplateRenderer = {
 ${data.position ? `<p style="margin:3px 0 0;color:#ffffff;font-weight:500;">${data.position}</p>` : ""}
 ${data.company ? `<p style="margin:2px 0 0;color:#888;">${data.company}</p>` : ""}
 <div style="margin:10px 0;height:1px;background:${style.primary_color}30;box-shadow:0 0 4px ${style.primary_color}40;"></div>
-<p style="margin:0;font-size:${fs - 1}px;color:#aaa;">${[data.phone, data.email].filter(Boolean).join(" · ")}</p>
+<p style="margin:0;font-size:${fs - 1}px;color:#aaa;">${contactLine(data, style, " · ")}</p>
 ${data.website ? `<p style="margin:3px 0 0;"><a href="${data.website.startsWith("http") ? data.website : `https://${data.website}`}" style="color:${style.primary_color};text-decoration:none;">${data.website}</a></p>` : ""}
+${socialsHTML(data, style, fs) ? `<div style="margin-top:6px;">${socialsHTML(data, style, fs)}</div>` : ""}
 ${data.motto ? `<p style="margin:10px 0 0;font-size:${fs - 1}px;font-style:italic;color:#666;">"${data.motto}"</p>` : ""}
 </td></tr></table>`;
   },

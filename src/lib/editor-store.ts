@@ -42,9 +42,12 @@ const defaultStyle: SignatureStyle = {
   primary_color: "#F97316",
   secondary_color: "#111827",
   text_color: "#6B7280",
+  background_color: "#FFFFFF",
   font: "Arial",
   font_size: "md",
   alignment: "left",
+  border_radius: "md",
+  shadow: true,
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
