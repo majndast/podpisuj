@@ -15,7 +15,7 @@ export function StepPreview({
   tier: Tier;
   onSave: () => Promise<void>;
 }) {
-  const { data, style, setStep } = useEditorStore();
+  const { data, style, templateId, setStep } = useEditorStore();
   const [copied, setCopied] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -23,7 +23,7 @@ export function StepPreview({
   const includeWatermark = tier === "free";
 
   const handleCopy = async () => {
-    const html = generateSignatureHTML(data, style, includeWatermark);
+    const html = generateSignatureHTML(data, style, templateId, includeWatermark);
 
     try {
       await navigator.clipboard.write([

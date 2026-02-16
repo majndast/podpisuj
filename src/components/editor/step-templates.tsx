@@ -2,12 +2,12 @@
 
 import { Lock } from "lucide-react";
 import { useEditorStore } from "@/lib/editor-store";
-import { templates, type Template } from "@/lib/templates";
+import { signatureTemplates } from "@/lib/signature-templates";
 import { Badge } from "@/components/ui/badge";
 import type { Tier } from "@/lib/supabase/types";
 
 export function StepTemplates({ tier }: { tier: Tier }) {
-  const { templateId, setTemplateId } = useEditorStore();
+  const { templateId, setTemplateId, style } = useEditorStore();
 
   const canUsePremium = tier === "pro" || tier === "team";
 
@@ -19,7 +19,7 @@ export function StepTemplates({ tier }: { tier: Tier }) {
       </p>
 
       <div className="mt-6 grid grid-cols-2 gap-3">
-        {templates.map((t) => {
+        {signatureTemplates.map((t) => {
           const locked = t.category === "premium" && !canUsePremium;
           const selected = templateId === t.id;
 
@@ -46,14 +46,8 @@ export function StepTemplates({ tier }: { tier: Tier }) {
                 </Badge>
               )}
 
-              {/* Placeholder thumbnail */}
-              <div className="mb-3 flex items-start gap-2">
-                <div className="h-8 w-8 rounded-full bg-muted" />
-                <div className="space-y-1">
-                  <div className="h-2 w-16 rounded bg-foreground/60" />
-                  <div className="h-1.5 w-12 rounded bg-primary/40" />
-                  <div className="h-1.5 w-14 rounded bg-muted-foreground/30" />
-                </div>
+              <div className="mb-3 min-h-[40px]">
+                {t.preview(style)}
               </div>
 
               <p className="text-sm font-medium">{t.name}</p>
